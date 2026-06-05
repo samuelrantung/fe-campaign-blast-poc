@@ -26,7 +26,7 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
         risk_level: riskFilter !== "ALL" ? riskFilter : undefined,
-        sort: sortBy,
+        sort_by: sortBy,
       }),
     [page, riskFilter, sortBy],
   );
@@ -38,18 +38,6 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
   const rows = useMemo(() => {
     if (!customers) return [];
     let r = customers.slice();
-    // if (riskFilter !== "ALL") r = r.filter((c) => c.risk === riskFilter);
-    // if (search) {
-    //   const q = search.toLowerCase();
-    //   r = r.filter(
-    //     (c) =>
-    //       c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q),
-    //   );
-    // }
-    // if (sortBy === "score") r.sort((a, b) => a.rfm.combined - b.rfm.combined);
-    // else if (sortBy === "recency")
-    //   r.sort((a, b) => b.daysSinceLastPurchase - a.daysSinceLastPurchase);
-    // else if (sortBy === "spend") r.sort((a, b) => b.totalSpend - a.totalSpend);
 
     // -- parse backend response key to frontend key --
     r.forEach((row) => {
@@ -71,9 +59,6 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
 
     return r;
   }, [customers, search, riskFilter, sortBy]);
-
-  // const totalPages = Math.ceil(rows.length / PAGE_SIZE);
-  // const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const counts = useMemo(
     () => ({
