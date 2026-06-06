@@ -3,6 +3,7 @@ const NAV_GROUPS = [
   {
     label: 'Operate',
     items: [
+      { id: 'dataset', label: 'Dataset', icon: '⬆' },
       { id: 'at-risk', label: 'At-risk customers', icon: '👥' },
       { id: 'builder', label: 'Blast builder', icon: '✦' },
     ],

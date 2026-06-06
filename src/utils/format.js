@@ -43,14 +43,14 @@ export function renderTemplate(customer, opts = {}) {
   const wrap = opts.highlightSlots
     ? (v) => `<span class="slot">${v}</span>`
     : (v) => v;
-  const first = customer.name.split(" ")[0];
+  const first = customer.name?.split(" ")?.[0];
   return [
     `Hi ${wrap(first)}, we miss you!`,
     "",
     "It's been a while since your last visit.",
-    `Here's a personal offer just for you: ${wrap(promo.value)}.`,
+    `Here's a personal offer just for you: ${wrap(promo?.value)}.`,
     "",
-    `Use code ${wrap(customer.uniqueCode)} — valid for ${wrap("7")} days.`,
+    `Use code ${wrap(customer?.uniqueCode)} — valid for ${wrap("7")} days.`,
     "",
     "See you soon!",
   ].join("\n");

@@ -20,7 +20,6 @@ export async function getAtRiskCustomers(filters = {}) {
     await mockDelay();
     return mockCustomers.slice();
   }
-  console.log("@@params", filters);
   return apiFetch("/customers/at-risk", { params: filters });
 }
 

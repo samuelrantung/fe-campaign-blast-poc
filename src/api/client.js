@@ -33,6 +33,26 @@ export class ApiError extends Error {
 export const mockDelay = (ms = 300) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Multipart/form-data upload wrapper. Use for file uploads instead of apiFetch.
+ * @param {string} path       e.g. "/blast/dataset/upload"
+ * @param {FormData} formData
+ * @returns {Promise<any>}    parsed JSON, or null for 204
+ * @throws  {ApiError}
+ */
+export async function apiUpload(path, formData) {
+  const url = new URL(
+    BASE_URL.replace(/\/$/, "") + path,
+    window.location.origin,
+  );
+  const res = await fetch(url.toString(), { method: "POST", body: formData });
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, errBody.detail || res.statusText, errBody);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/**
  * Core fetch wrapper.
  * @param {string} path                 e.g. "/customers/at-risk"
  * @param {object} [opts]
@@ -57,7 +77,6 @@ export async function apiFetch(
     });
   }
 
-  console.log("@@METHOD", method);
   const res = await fetch(url.toString(), {
     method,
     headers: {

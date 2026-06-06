@@ -5,3 +5,4 @@ export * from './customers';
 export * from './blasts';
 export * from './promos';
 export * from './analytics';
+export * from './dataset';

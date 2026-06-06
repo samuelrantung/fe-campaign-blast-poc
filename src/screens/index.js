@@ -1,4 +1,5 @@
 // Barrel export for screens.
+export { default as DatasetScreen } from './DatasetScreen';
 export { default as AtRiskScreen } from './AtRiskScreen';
 export { default as BlastBuilderScreen } from './BlastBuilderScreen';
 export { default as LogsScreen } from './LogsScreen';

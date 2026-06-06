@@ -11,14 +11,44 @@ import {
 import { useAsync } from "../hooks/useAsync";
 import { getAtRiskCustomers } from "../api";
 import { fmtIDR, fmtRelative, fmtUSD } from "../utils/format";
+import { useSearchParams } from "react-router-dom";
+
+function mapCustomerKeys(row) {
+  if (row.customer_id != null) row.id = row.customer_id;
+  if (row.risk_level != null) row.risk = row.risk_level;
+  if (row.rfm != null) {
+    row.rfm.r = row.rfm?.r_score;
+    row.rfm.f = row.rfm?.f_score;
+    row.rfm.m = row.rfm?.m_score;
+    row.rfm.combined = row.rfm?.combined_score;
+  }
+  if (row.triggered_rules != null) row.rules = row.triggered_rules;
+  if (row.days_since_last_purchase != null)
+    row.daysSinceLastPurchase = row.days_since_last_purchase;
+  if (row.spend_summary != null)
+    row.totalSpend = row.spend_summary?.total_spend;
+  return row;
+}
 
 export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
+  const PAGE_SIZE = 50;
+
+  const pageQuery = new URLSearchParams(window.location.search).get("page");
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("risk");
   const [selected, setSelected] = useState(new Set());
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
+  const [allCustomers, setAllCustomers] = useState(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [page, _setPage] = useState(() => Number(pageQuery ?? 1));
+
+  function setPage(next) {
+    const val = typeof next === "function" ? next(page) : next;
+    _setPage(val);
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", val);
+    history.pushState(null, "", "?" + params.toString());
+  }
 
   const { data, loading, error } = useAsync(
     () =>
@@ -33,31 +63,11 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
   const customers = data?.results || [];
   const totalRisk = data?.total || 0;
   const total = data?.total_scored || 0;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(totalRisk / PAGE_SIZE);
 
   const rows = useMemo(() => {
     if (!customers) return [];
-    let r = customers.slice();
-
-    // -- parse backend response key to frontend key --
-    r.forEach((row) => {
-      if (row.customer_id != null) row.id = row.customer_id;
-      if (row.risk_level != null) row.risk = row.risk_level;
-      if (row.rfm != null) {
-        row.rfm.r = row.rfm?.r_score;
-        row.rfm.f = row.rfm?.f_score;
-        row.rfm.m = row.rfm?.m_score;
-        row.rfm.combined = row.rfm?.combined_score;
-      }
-      if (row.triggered_rules != null) row.rules = row.triggered_rules;
-      if (row.triggered_rules != null) row.rules = row.triggered_rules;
-      if (row.days_since_last_purchase != null)
-        row.daysSinceLastPurchase = row.days_since_last_purchase;
-      if (row.spend_summary != null)
-        row.totalSpend = row.spend_summary?.total_spend;
-    });
-
-    return r;
+    return customers.slice().map(mapCustomerKeys);
   }, [customers, search, riskFilter, sortBy]);
 
   const counts = useMemo(
@@ -69,7 +79,9 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
     [customers],
   );
 
-  useEffect(() => setPage(1), [search, riskFilter, sortBy]);
+  useEffect(() => {
+    setAllCustomers(null);
+  }, [search, riskFilter, sortBy]);
 
   function toggle(id) {
     const s = new Set(selected);
@@ -78,8 +90,28 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
     setSelected(s);
   }
   function toggleAll() {
-    if (selected.size === rows.length) setSelected(new Set());
-    else setSelected(new Set(rows.map((r) => r.id)));
+    if (allCustomers !== null || rows.every((r) => selected.has(r.id))) {
+      setSelected(new Set());
+      setAllCustomers(null);
+    } else {
+      setSelected(new Set(rows.map((r) => r.id)));
+    }
+  }
+  async function handleSelectAll() {
+    setLoadingAll(true);
+    try {
+      const result = await getAtRiskCustomers({
+        limit: total,
+        offset: 0,
+        risk_level: riskFilter !== "ALL" ? riskFilter : undefined,
+        sort_by: sortBy,
+      });
+      const all = (result.results || []).map((r) => mapCustomerKeys({ ...r }));
+      setAllCustomers(all);
+      setSelected(new Set(all.map((r) => r.id)));
+    } finally {
+      setLoadingAll(false);
+    }
   }
 
   function handleRiskFilter(val) {
@@ -158,11 +190,45 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
         <button
           className="btn btn-accent"
           disabled={selected.size === 0}
-          onClick={() => onStartBlast([...selected])}
+          onClick={() =>
+            onStartBlast(
+              (allCustomers ?? rows).filter((r) => selected.has(r.id)),
+            )
+          }
         >
           Start blast → {selected.size || "select rows"}
         </button>
       </Toolbar>
+
+      {rows.length > 0 &&
+        rows.every((r) => selected.has(r.id)) &&
+        totalPages > 1 &&
+        allCustomers === null && (
+          <div className="select-all-banner">
+            <span>All {rows.length} customers on this page are selected.</span>
+            <button
+              className="btn-link"
+              onClick={handleSelectAll}
+              disabled={loadingAll}
+            >
+              {loadingAll ? "Loading…" : `Select all ${total} customers`}
+            </button>
+          </div>
+        )}
+      {allCustomers !== null && (
+        <div className="select-all-banner">
+          <span>All {selected.size} customers are selected.</span>
+          <button
+            className="btn-link"
+            onClick={() => {
+              setSelected(new Set());
+              setAllCustomers(null);
+            }}
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
 
       <div className="panel">
         {!loading && (
@@ -172,7 +238,9 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
                 <th style={{ width: 32 }}>
                   <input
                     type="checkbox"
-                    checked={rows.length > 0 && selected.size === rows.length}
+                    checked={
+                      rows.length > 0 && rows.every((r) => selected.has(r.id))
+                    }
                     onChange={toggleAll}
                   />
                 </th>
@@ -186,7 +254,6 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
               </tr>
             </thead>
             <tbody>
-              {console.log("@@rows", rows[0])}
               {rows.map((c) => (
                 <tr key={c.id} className={selected.has(c.id) ? "selected" : ""}>
                   <td>
