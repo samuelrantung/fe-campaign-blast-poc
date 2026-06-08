@@ -1,7 +1,7 @@
 // ── Blasts API ───────────────────────────────────────────────────────────
 // Preview a recipient set, dispatch a blast, and read history / per-row logs.
-import { apiFetch, USE_MOCK, mockDelay } from './client';
-import { mockCustomers, mockBlasts, mockDispatch } from '../mocks/mockData';
+import { apiFetch, USE_MOCK, mockDelay } from "./client";
+import { mockCustomers, mockBlasts, mockDispatch } from "../mocks/mockData";
 
 /**
  * Resolve the recipient list for a campaign WITHOUT sending anything.
@@ -28,14 +28,19 @@ export async function previewBlast({ sql, maxSize = 500, customerIds } = {}) {
       base = base.filter((c) => set.has(c.id));
     } else if (sql) {
       // tiny stand-in interpreter for the few clauses the mock understands
-      if (/HIGH/.test(sql) && /MEDIUM/.test(sql)) base = base.filter((c) => c.risk !== 'LOW');
-      else if (/HIGH/.test(sql)) base = base.filter((c) => c.risk === 'HIGH');
-      if (/manado/i.test(sql)) base = base.filter((c) => c.city === 'manado');
-      if (/electronics/i.test(sql)) base = base.filter((c) => c.topCategory === 'electronics');
+      if (/HIGH/.test(sql) && /MEDIUM/.test(sql))
+        base = base.filter((c) => c.risk !== "LOW");
+      else if (/HIGH/.test(sql)) base = base.filter((c) => c.risk === "HIGH");
+      if (/manado/i.test(sql)) base = base.filter((c) => c.city === "manado");
+      if (/electronics/i.test(sql))
+        base = base.filter((c) => c.topCategory === "electronics");
     }
     return { recipients: base.slice(0, maxSize) };
   }
-  return apiFetch('/blasts/preview', { method: 'POST', body: { sql, maxSize, customerIds } });
+  return apiFetch("/blasts/preview", {
+    method: "POST",
+    body: { sql, maxSize, customerIds },
+  });
 }
 
 /**
@@ -55,14 +60,27 @@ export async function previewBlast({ sql, maxSize = 500, customerIds } = {}) {
  * @param {{customerIds: string[], senderMode: string, template: string, mlEnabled?: boolean}} params
  * @returns {Promise<{blastId: string, total: number, sent: number, failed: number}>}
  */
-export async function runBlast({ customerIds, senderMode = 'mock', template, mlEnabled = false }) {
+export async function runBlast({
+  customerIds,
+  senderMode = "mock",
+  template,
+  mlEnabled = false,
+}) {
   if (USE_MOCK) {
     await mockDelay(600);
     const total = customerIds.length;
     const failed = Math.max(0, Math.round(total * 0.025));
-    return { blastId: 'blast_' + Math.random().toString(16).slice(2, 6), total, sent: total - failed, failed };
+    return {
+      blastId: "blast_" + Math.random().toString(16).slice(2, 6),
+      total,
+      sent: total - failed,
+      failed,
+    };
   }
-  return apiFetch('/blasts', { method: 'POST', body: { customerIds, senderMode, template, mlEnabled } });
+  return apiFetch("/blasts", {
+    method: "POST",
+    body: { customerIds, senderMode, template, mlEnabled },
+  });
 }
 
 /**
@@ -78,7 +96,7 @@ export async function getBlastHistory() {
     await mockDelay();
     return mockBlasts.slice();
   }
-  return apiFetch('/blasts');
+  return apiFetch("/blasts");
 }
 
 /**
@@ -94,8 +112,37 @@ export async function getBlastHistory() {
 export async function getDispatchLog({ blastId } = {}) {
   if (USE_MOCK) {
     await mockDelay();
-    return blastId ? mockDispatch.filter((r) => r.blastId === blastId) : mockDispatch.slice();
+    return blastId
+      ? mockDispatch.filter((r) => r.blastId === blastId)
+      : mockDispatch.slice();
   }
-  const path = blastId ? `/blasts/${encodeURIComponent(blastId)}/dispatch` : '/blasts/dispatch';
+  const path = blastId
+    ? `/blasts/${encodeURIComponent(blastId)}/dispatch`
+    : "/blasts/dispatch";
   return apiFetch(path);
+}
+
+export async function sendBlast({ customers }) {
+  if (!customers) {
+    console.error("Customers required");
+    return;
+  }
+
+  const messages = customers?.map((customer) => {
+    return {
+      to: customer.to,
+      customer_id: customer.customer_id,
+      promo_code: customer.promo_code,
+      template_name: customer.template_name,
+      language_code: "en",
+      template_params: customer.template_params,
+    };
+  });
+  const body = {
+    messages,
+  };
+  return apiFetch("/messaging/send-bulk", {
+    method: "POST",
+    body,
+  });
 }

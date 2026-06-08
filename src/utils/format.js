@@ -56,4 +56,23 @@ export function renderTemplate(customer, opts = {}) {
   ].join("\n");
 }
 
+export function renderMetaTemplate(template, params = {}) {
+  const getComponent = (type) =>
+    template.components?.find((c) => c.type === type);
+
+  const fillSlots = (text, values = {}) =>
+    text?.replace(/\{\{(\w+)\}\}/g, (_, key) => values[key] ?? `{{${key}}}`);
+
+  const header = getComponent("HEADER");
+  const body = getComponent("BODY");
+  const footer = getComponent("FOOTER");
+
+  return {
+    header:
+      header?.format === "TEXT" ? fillSlots(header.text, params.HEADER) : null,
+    body: fillSlots(body?.text, params.BODY) ?? null,
+    footer: footer?.text ?? null,
+  };
+}
+
 export { TEMPLATE_NAME };
