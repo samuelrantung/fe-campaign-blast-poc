@@ -134,7 +134,7 @@ export async function sendBlast({ customers }) {
       customer_id: customer.customer_id,
       promo_code: customer.promo_code,
       template_name: customer.template_name,
-      language_code: "en",
+      language_code: customer.language,
       template_params: customer.template_params,
     };
   });

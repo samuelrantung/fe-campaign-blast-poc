@@ -39,7 +39,7 @@ export async function uploadDataset(file) {
 
 /**
  * POST /blast/dataset/analyze
- * Body: { use_ml: boolean }
+ * Body: { ml_enabled: boolean }
  * Returns { ok: true } on success
  */
 export async function analyzeDataset(useML) {
@@ -47,5 +47,8 @@ export async function analyzeDataset(useML) {
     await mockDelay(800);
     return { ok: true };
   }
-  return apiFetch("/dataset/analyze", { method: "POST", body: { use_ml: useML } });
+  return apiFetch("/dataset/analyze", {
+    method: "POST",
+    body: { ml_enabled: useML },
+  });
 }

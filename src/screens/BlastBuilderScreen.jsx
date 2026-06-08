@@ -24,7 +24,7 @@ const META_TEMPLATE = {
     },
   },
   hello_world: {
-    BODY: () => ({}),
+    GET_PARAMS: () => [],
   },
 };
 
@@ -95,6 +95,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
           customer_id: customer.id,
           promo_code: customer.promo?.promo_code,
           template_name: selectedTemplate.name,
+          language: selectedTemplate.language,
           template_params,
         };
       });
