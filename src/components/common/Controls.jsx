@@ -19,12 +19,13 @@ export function Search({ value, onChange, placeholder }) {
 }
 
 // Native select with consistent styling. options: [{value,label}] or strings.
-export function Select({ value, onChange, options, style }) {
+export function Select({ value, onChange, options, style, disabled }) {
   return (
     <select
       className="select"
       style={{ width: 'auto', ...(style || {}) }}
       value={value}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
     >
       {options.map((o) => (

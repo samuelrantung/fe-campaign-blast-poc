@@ -7,6 +7,7 @@ import {
   DatasetScreen,
   AtRiskScreen,
   BlastBuilderScreen,
+  TemplatesScreen,
   LogsScreen,
   PromoCodesScreen,
   AnalyticsScreen,
@@ -23,6 +24,7 @@ import {
 const TITLES = {
   dataset: ["Setup", "Dataset"],
   "at-risk": ["Customers", "At-risk list"],
+  templates: ["Campaigns", "Templates"],
   builder: ["Campaigns", "Blast builder"],
   logs: ["Records", "Dispatch logs"],
   promos: ["Records", "Promo codes"],
@@ -80,6 +82,7 @@ export default function App() {
             onStartBlast={startBlast}
           />
         )}
+        {screen === "templates" && <TemplatesScreen pushToast={push} />}
         {screen === "builder" && (
           <BlastBuilderScreen
             preselected={blastPreselected}

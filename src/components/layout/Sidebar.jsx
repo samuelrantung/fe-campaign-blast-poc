@@ -5,6 +5,7 @@ const NAV_GROUPS = [
     items: [
       { id: 'dataset', label: 'Dataset', icon: '⬆' },
       { id: 'at-risk', label: 'At-risk customers', icon: '👥' },
+      { id: 'templates', label: 'Templates', icon: '▤' },
       { id: 'builder', label: 'Blast builder', icon: '✦' },
     ],
   },
