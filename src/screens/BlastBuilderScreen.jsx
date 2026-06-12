@@ -155,7 +155,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                 }}
                 value={selectedTemplate?.name}
                 options={[
-                  ...templates.map((template) => {
+                  ...templates.filter(x => x.status === "APPROVED").map((template) => {
                     return {
                       value: template.name,
                       label: template.name,
