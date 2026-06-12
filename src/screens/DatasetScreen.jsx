@@ -338,7 +338,7 @@ export default function DatasetScreen({ onNavigate }) {
           {isAnalyzed && (
             <button
               className="btn btn-primary"
-              style={{ marginTop: 10 }}
+              style={{ marginTop: 24 }}
               onClick={() => onNavigate("at-risk")}
             >
               View at-risk customers →

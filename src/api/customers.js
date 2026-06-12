@@ -24,6 +24,26 @@ export async function getAtRiskCustomers(filters = {}) {
 }
 
 /**
+ * Download the at-risk customer list as a CSV file.
+ * GET /customers/at-risk/download
+ */
+export async function downloadAtRiskCSV() {
+  const { BASE_URL } = await import("./client");
+  const url = new URL(
+    BASE_URL.replace(/\/$/, "") + "/customers/at-risk/download",
+    window.location.origin,
+  );
+  const res = await fetch(url.toString(), { headers: { accept: "application/json" } });
+  if (!res.ok) throw new Error("Download failed.");
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "at-risk-customers.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/**
  * Fetch one customer by id (used by the detail drawer).
  *
  * REAL ENDPOINT:  GET /customers/{id}

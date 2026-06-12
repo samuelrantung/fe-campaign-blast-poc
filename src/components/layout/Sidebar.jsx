@@ -1,7 +1,7 @@
 // Left navigation rail.
 const NAV_GROUPS = [
   {
-    label: 'Operate',
+    label: "Operate",
     items: [
       { id: 'dataset', label: 'Dataset', icon: '⬆' },
       { id: 'at-risk', label: 'At-risk customers', icon: '👥' },
@@ -10,11 +10,11 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Records',
+    label: "Records",
     items: [
-      { id: 'logs', label: 'Dispatch logs', icon: '≡' },
-      { id: 'promos', label: 'Promo codes', icon: '#' },
-      { id: 'analytics', label: 'Analytics', icon: '▴' },
+      { id: "logs", label: "Dispatch logs", icon: "≡" },
+      { id: "promos", label: "Promo codes", icon: "#" },
+      { id: "analytics", label: "Analytics", icon: "▴" },
     ],
   },
 ];
@@ -37,26 +37,27 @@ export default function Sidebar({ screen, onNavigate, counts = {} }) {
             {g.items.map((it) => (
               <button
                 key={it.id}
-                className={'nav-item' + (screen === it.id ? ' active' : '')}
+                className={"nav-item" + (screen === it.id ? " active" : "")}
                 onClick={() => onNavigate(it.id)}
               >
-                <span style={{ width: 16, textAlign: 'center', color: screen === it.id ? 'var(--accent)' : 'var(--ink-4)' }}>{it.icon}</span>
+                <span
+                  style={{
+                    width: 16,
+                    textAlign: "center",
+                    color: screen === it.id ? "var(--accent)" : "var(--ink-4)",
+                  }}
+                >
+                  {it.icon}
+                </span>
                 <span>{it.label}</span>
-                {counts[it.id] !== undefined && <span className="count">{counts[it.id]}</span>}
+                {counts[it.id] !== undefined && (
+                  <span className="count">{counts[it.id]}</span>
+                )}
               </button>
             ))}
           </div>
         ))}
       </nav>
-
-      <div className="env-pill">
-        <span className="env-dot" />
-        <span><strong style={{ color: 'var(--ink-2)' }}>SENDER_MODE</strong> = mock</span>
-      </div>
-      <div className="env-pill" style={{ marginTop: -6 }}>
-        <span className="env-dot" style={{ background: 'var(--ok)' }} />
-        <span><strong style={{ color: 'var(--ink-2)' }}>POC</strong> · dummy dataset</span>
-      </div>
     </aside>
   );
 }

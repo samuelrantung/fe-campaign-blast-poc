@@ -122,7 +122,7 @@ export async function getDispatchLog({ blastId } = {}) {
   return apiFetch(path);
 }
 
-export async function sendBlast({ customers }) {
+export async function sendBlast({ customers, maxBlastSize, senderMode }) {
   if (!customers) {
     console.error("Customers required");
     return;
@@ -140,6 +140,8 @@ export async function sendBlast({ customers }) {
   });
   const body = {
     messages,
+    max_blast_size: maxBlastSize,
+    sender_mode: senderMode,
   };
   return apiFetch("/messaging/send-bulk", {
     method: "POST",

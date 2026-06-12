@@ -13,16 +13,34 @@ export function fmtUSD(n) {
   });
 }
 
-/** Relative time, e.g. "3h ago" / "5d ago"; falls back to ISO date. */
+/** Relative time, e.g. "3h ago" / "in 5d"; falls back to ISO date. */
 export function fmtRelative(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
   const diff = (Date.now() - d.getTime()) / 1000;
+  
+  if (diff < 0) {
+    const absDiff = -diff;
+    if (absDiff < 60) return "in " + Math.floor(absDiff) + "s";
+    if (absDiff < 3600) return "in " + Math.floor(absDiff / 60) + "m";
+    if (absDiff < 86400) return "in " + Math.floor(absDiff / 3600) + "h";
+    if (absDiff < 86400 * 30) return "in " + Math.floor(absDiff / 86400) + "d";
+    return d.toISOString().slice(0, 10);
+  }
+  
   if (diff < 60) return Math.floor(diff) + "s ago";
   if (diff < 3600) return Math.floor(diff / 60) + "m ago";
   if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
   if (diff < 86400 * 30) return Math.floor(diff / 86400) + "d ago";
   return d.toISOString().slice(0, 10);
+}
+
+/** Date only formatted as "DD-MM-YYYY". */
+export function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const parts = d.toISOString().slice(0, 10).split('-');
+  return `${parts[2]}-${parts[1]}-${parts[0]}`;
 }
 
 /** Absolute timestamp, e.g. "2026-05-28 14:03". */

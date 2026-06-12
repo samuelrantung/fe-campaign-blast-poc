@@ -9,7 +9,7 @@ import {
   Segmented,
 } from "../components/common/Controls";
 import { useAsync } from "../hooks/useAsync";
-import { getAtRiskCustomers } from "../api";
+import { getAtRiskCustomers, downloadAtRiskCSV } from "../api";
 import { fmtIDR, fmtRelative, fmtUSD } from "../utils/format";
 import { useSearchParams } from "react-router-dom";
 
@@ -40,6 +40,7 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
   const [selected, setSelected] = useState(new Set());
   const [allCustomers, setAllCustomers] = useState(null);
   const [loadingAll, setLoadingAll] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [page, _setPage] = useState(() => Number(pageQuery ?? 1));
 
   function setPage(next) {
@@ -174,10 +175,14 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
           value={sortBy}
           onChange={handleSortBy}
           options={[
-            { value: "risk", label: "Sort: Risk · Recency" },
-            { value: "score", label: "Sort: RFM score (asc)" },
-            { value: "recency", label: "Sort: Recency (desc)" },
-            { value: "spend", label: "Sort: Spend (desc)" },
+            { value: "risk:desc", label: "Sort: Risk · Recency (desc)" },
+            {
+              value: "risk:desc,spend:desc",
+              label: "Sort: Risk · Spend (desc)",
+            },
+            { value: "score:asc", label: "Sort: RFM score (asc)" },
+            { value: "recency:desc", label: "Sort: Recency (desc)" },
+            { value: "spend:desc", label: "Sort: Spend (desc)" },
           ]}
         />
         <div style={{ flex: 1 }} />
@@ -186,7 +191,16 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
             {selected.size} selected
           </span>
         )}
-        <button className="btn">Export CSV</button>
+        <button
+          className="btn"
+          disabled={downloading}
+          onClick={async () => {
+            setDownloading(true);
+            try { await downloadAtRiskCSV(); } finally { setDownloading(false); }
+          }}
+        >
+          {downloading ? "Exporting…" : "Export CSV"}
+        </button>
         <button
           className="btn btn-accent"
           disabled={selected.size === 0}

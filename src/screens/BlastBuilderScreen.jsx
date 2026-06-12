@@ -4,7 +4,7 @@ import { Select, Segmented } from "../components/common/Controls";
 import Modal from "../components/common/Modal";
 import { useAsync } from "../hooks/useAsync";
 import { getTemplates, previewBlast, runBlast, sendBlast } from "../api";
-import { fmtIDR, TEMPLATE_NAME } from "../utils/format";
+import { fmtIDR, fmtUSD, TEMPLATE_NAME } from "../utils/format";
 import MetaTemplatePreview from "../components/MetaTemplatePreview";
 
 const META_TEMPLATE = {
@@ -31,7 +31,7 @@ const META_TEMPLATE = {
 export default function BlastBuilderScreen({ preselected = [], onSent }) {
   const [sql, setSql] = useState("risk_level IN ('HIGH', 'MEDIUM')");
   const [maxSize, setMaxSize] = useState(500);
-  const [senderMode, setSenderMode] = useState("mock");
+  const [senderMode, setSenderMode] = useState("meta");
   const [mlEnabled, setMlEnabled] = useState(false);
   const [previewIdx, setPreviewIdx] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState({});
@@ -102,6 +102,8 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
 
       const res = await sendBlast({
         customers,
+        maxBlastSize: maxSize,
+        senderMode: senderMode,
       });
       clearInterval(timer);
       setProgress(1);
@@ -169,8 +171,8 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                 value={senderMode}
                 onChange={setSenderMode}
                 options={[
-                  // { value: "mock", label: "Mock (log only)" },
                   { value: "meta", label: "Meta Cloud" },
+                  { value: "mock", label: "Mock (log only)" },
                 ]}
               />
               <div className="hint">
@@ -283,7 +285,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                           {c.uniqueCode}
                         </span>
                       </td>
-                      <td className="col-num">{fmtIDR(c.totalSpend)}</td>
+                      <td className="col-num">{fmtUSD(c.totalSpend)}</td>
                     </tr>
                   ))}
                 </tbody>

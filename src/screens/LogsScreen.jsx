@@ -46,7 +46,6 @@ export default function LogsScreen() {
           options={[{ value: 'ALL', label: 'Blast: All runs' }, ...history.map((b) => ({ value: b.id, label: 'Blast: ' + b.id }))]}
         />
         <div style={{ flex: 1 }} />
-        <button className="btn">Download .jsonl</button>
       </Toolbar>
 
       <div className="panel" style={{ marginBottom: 16 }}>
