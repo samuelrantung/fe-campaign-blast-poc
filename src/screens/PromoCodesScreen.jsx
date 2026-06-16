@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import StatusBadge from '../components/common/StatusBadge';
+import Modal from '../components/common/Modal';
 import { Toolbar, Search, Select } from '../components/common/Controls';
 import { useAsync } from '../hooks/useAsync';
-import { listPromoCodes, validatePromoCode, redeemPromoCode } from '../api';
+import { listPromoCodes, validatePromoCode, redeemPromoCode, extendPromoCode } from '../api';
 import { fmtRelative, fmtDate } from '../utils/format';
 
 export default function PromoCodesScreen({ pushToast }) {
@@ -15,6 +16,24 @@ export default function PromoCodesScreen({ pushToast }) {
   const [validateCode, setValidateCode] = useState('');
   const [validateResult, setValidateResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [extendTarget, setExtendTarget] = useState(null);
+  const [extendDays, setExtendDays] = useState(7);
+
+  async function doExtend() {
+    if (!extendTarget || extendDays < 1) return;
+    setBusy(true);
+    try {
+      await extendPromoCode(extendTarget.code, extendDays);
+      pushToast(`Extended ${extendTarget.code} by ${extendDays} day(s).`, 'ok');
+      setExtendTarget(null);
+      setExtendDays(7);
+      reload();
+    } catch (e) {
+      pushToast(e.message || 'Extend failed.', 'fail');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const rows = useMemo(() => {
     let r = codes.slice();
@@ -73,17 +92,20 @@ export default function PromoCodesScreen({ pushToast }) {
             <table className="dt">
               <thead>
                 <tr>
+                  <th>Code</th>
                   <th>Phone</th>
                   <th>Customer</th>
                   <th>Promo</th>
                   <th>Status</th>
                   <th>Issued</th>
                   <th>Expires</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.code}>
+                    <td><span className="mono" style={{ fontWeight: 500 }}>{r.code}</span></td>
                     <td><span className="mono" style={{ fontWeight: 500 }}>{r.phone}</span></td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{r.name}</div>
@@ -96,6 +118,15 @@ export default function PromoCodesScreen({ pushToast }) {
                     <td><StatusBadge status={r.status} /></td>
                     <td style={{ color: 'var(--ink-3)' }}>{fmtDate(r.issuedAt)}</td>
                     <td style={{ color: 'var(--ink-3)' }}>{r.status === 'active' ? fmtRelative(r.expiresAt) : '-'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        disabled={r.status !== 'active'}
+                        onClick={() => { setExtendTarget(r); setExtendDays(7); }}
+                      >
+                        Extend
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -180,6 +211,33 @@ export default function PromoCodesScreen({ pushToast }) {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={!!extendTarget}
+        onClose={() => setExtendTarget(null)}
+        title="Extend expiry"
+        sub={extendTarget ? `${extendTarget.code} · expires ${fmtRelative(extendTarget.expiresAt)}` : ''}
+        footer={
+          <>
+            <button className="btn" onClick={() => setExtendTarget(null)} disabled={busy}>Cancel</button>
+            <button className="btn btn-primary" onClick={doExtend} disabled={busy || extendDays < 1}>
+              {busy ? 'Extending…' : `Extend ${extendDays} day(s)`}
+            </button>
+          </>
+        }
+      >
+        <label className="label">Add days</label>
+        <input
+          className="input"
+          type="number"
+          min={1}
+          max={365}
+          value={extendDays}
+          onChange={(e) => setExtendDays(Math.max(1, +e.target.value || 0))}
+          onKeyDown={(e) => e.key === 'Enter' && doExtend()}
+        />
+        <div className="hint">New expiry will be the current one plus this many days.</div>
+      </Modal>
     </div>
   );
 }

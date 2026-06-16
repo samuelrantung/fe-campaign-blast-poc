@@ -4,7 +4,7 @@ import { Select, Segmented } from "../components/common/Controls";
 import Modal from "../components/common/Modal";
 import { useAsync } from "../hooks/useAsync";
 import { getTemplates, previewBlast, runBlast, sendBlast } from "../api";
-import { fmtIDR, fmtUSD, TEMPLATE_NAME } from "../utils/format";
+import { fmtUSD } from "../utils/format";
 import MetaTemplatePreview from "../components/MetaTemplatePreview";
 
 const META_TEMPLATE = {
@@ -277,12 +277,12 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                       </td>
                       <td>
                         <span className="mono" style={{ fontSize: 12 }}>
-                          {c.promoCode}
+                          {c.promo?.promo_type || c.promoCode || "—"}
                         </span>
                       </td>
                       <td>
                         <span className="mono" style={{ fontSize: 12 }}>
-                          {c.uniqueCode}
+                          {c.promo?.promo_code || c.uniqueCode || "—"}
                         </span>
                       </td>
                       <td className="col-num">{fmtUSD(c.totalSpend)}</td>
@@ -447,7 +447,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
           <dt>Sender</dt>
           <dd className="mono">{senderMode}</dd>
           <dt>Template</dt>
-          <dd className="mono">{TEMPLATE_NAME}</dd>
+          <dd className="mono">{selectedTemplate?.name || "—"}</dd>
           <dt>Rate limit</dt>
           <dd>10 msg/s · ETA ~{Math.ceil(filtered.length / 10)}s</dd>
           <dt>Cooldown</dt>

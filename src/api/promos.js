@@ -50,6 +50,33 @@ export async function validatePromoCode(phone, promoCode) {
 }
 
 /**
+ * Extend a code's expiry by N days.
+ *
+ * REAL ENDPOINT:  POST /promo-codes/extend
+ * BODY:           { code: string, days: number }
+ * RESPONSE:       PromoCode  (expiresAt pushed out by `days`)
+ *
+ * @param {string} code The unique promo code id (e.g. WA-5XJHDS)
+ * @param {number} days Number of days to add
+ * @returns {Promise<object>}
+ */
+export async function extendPromoCode(code, days) {
+  if (USE_MOCK) {
+    await mockDelay(250);
+    const match = mockPromoCodes.find((p) => p.code === code);
+    if (match) {
+      const base = new Date(match.expiresAt || Date.now());
+      match.expiresAt = new Date(base.getTime() + days * 86_400_000).toISOString();
+    }
+    return match;
+  }
+  return apiFetch('/promo-codes/extend', {
+    method: 'POST',
+    body: { code, days },
+  });
+}
+
+/**
  * Redeem (consume) a code at point of sale.
  *
  * REAL ENDPOINT:  POST /promo-codes/redeem
