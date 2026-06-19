@@ -136,6 +136,9 @@ export async function sendBlast({ customers, maxBlastSize, senderMode }) {
       template_name: customer.template_name,
       language_code: customer.language,
       template_params: customer.template_params,
+      parameter_format: customer.parameter_format,
+      header_param: customer.header_param,
+      header_media: customer.header_media,
     };
   });
   const body = {
