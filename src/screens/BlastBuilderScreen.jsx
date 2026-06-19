@@ -3,30 +3,73 @@ import RiskBadge from "../components/common/RiskBadge";
 import { Select, Segmented } from "../components/common/Controls";
 import Modal from "../components/common/Modal";
 import { useAsync } from "../hooks/useAsync";
-import { getTemplates, previewBlast, runBlast, sendBlast } from "../api";
+import { getTemplates, sendBlast } from "../api";
 import { fmtUSD } from "../utils/format";
-import MetaTemplatePreview from "../components/MetaTemplatePreview";
+import { findVars, parseTemplate, TemplatePreview } from "../components/TemplateEditor";
 
-const META_TEMPLATE = {
-  reengagement_promo: {
-    GET_PARAMS: (customer) => {
-      const params = {
-        name: customer.name,
-        promo_value: customer.promo?.promo_value,
-        promo_code: customer.promo?.promo_code,
-        expiry_days: customer.promo?.expiry_days,
-      };
+// Customer fields a template variable can be bound to.
+const FIELD_OPTIONS = [
+  { value: "name", label: "Customer name" },
+  { value: "phone", label: "Phone" },
+  { value: "promo_type", label: "Promo type" },
+  { value: "promo_value", label: "Promo value" },
+  { value: "promo_code", label: "Promo code" },
+  { value: "expiry_days", label: "Expiry days" },
+];
+const FIELD_KEYS = FIELD_OPTIONS.map((f) => f.value);
 
-      return Object.keys(params).map((key) => ({
-        name: key,
-        value: params[key]?.toString(),
-      }));
-    },
-  },
-  hello_world: {
-    GET_PARAMS: () => [],
-  },
-};
+function fieldValue(customer, field) {
+  switch (field) {
+    case "name": return customer?.name;
+    case "phone": return customer?.phone;
+    case "promo_type": return customer?.promo?.promo_type;
+    case "promo_value": return customer?.promo?.promo_value;
+    case "promo_code": return customer?.promo?.promo_code;
+    case "expiry_days": return customer?.promo?.expiry_days;
+    default: return "";
+  }
+}
+
+// Default binding for a variable: auto-map to a same-named field, else custom.
+function autoMap(varName) {
+  return FIELD_KEYS.includes(varName)
+    ? { source: "field", field: varName }
+    : { source: "custom", value: "" };
+}
+
+function resolveEntry(entry, customer) {
+  if (!entry) return "";
+  const v = entry.source === "field" ? fieldValue(customer, entry.field) : entry.value;
+  return v == null ? "" : String(v);
+}
+
+// One variable → source (customer field | custom text) row.
+function MappingRow({ label, entry, onChange }) {
+  const source = entry?.source === "custom" ? "__custom__" : entry?.field;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 2 }}>{label}</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <Select
+          value={source}
+          onChange={(val) =>
+            onChange(val === "__custom__" ? { source: "custom", value: "" } : { source: "field", field: val })
+          }
+          options={[...FIELD_OPTIONS, { value: "__custom__", label: "Custom value" }]}
+          style={{ width: entry?.source === "custom" ? "45%" : "100%" }}
+        />
+        {entry?.source === "custom" && (
+          <input
+            className="input"
+            placeholder="custom text"
+            value={entry.value || ""}
+            onChange={(e) => onChange({ source: "custom", value: e.target.value })}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function BlastBuilderScreen({ preselected = [], onSent }) {
   const [sql, setSql] = useState("risk_level IN ('HIGH', 'MEDIUM')");
@@ -35,6 +78,9 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
   const [mlEnabled, setMlEnabled] = useState(false);
   const [previewIdx, setPreviewIdx] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState({});
+  const [bodyMapping, setBodyMapping] = useState({});
+  const [headerMapping, setHeaderMapping] = useState(null);
+  const [headerImageUrl, setHeaderImageUrl] = useState("");
 
   const [phase, setPhase] = useState("idle"); // idle | preflight | sending | done
   const [progress, setProgress] = useState(0);
@@ -63,6 +109,42 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
   const current =
     filtered[Math.min(previewIdx, filtered.length - 1)] || filtered[0];
 
+  // Derive the selected template's variables directly from its components, so
+  // the builder adapts to any template instead of relying on hardcoded maps.
+  const comps = selectedTemplate?.components || [];
+  const bodyComp = comps.find((c) => c.type === "BODY");
+  const headerComp = comps.find((c) => c.type === "HEADER");
+  const headerIsText = headerComp?.format === "TEXT";
+  const headerIsMedia = !!headerComp && !headerIsText;
+  const paramFormat = selectedTemplate?.parameter_format || "NAMED";
+  const bodyVars = useMemo(() => findVars(bodyComp?.text || ""), [bodyComp?.text]);
+  const headerVar = headerIsText ? findVars(headerComp?.text || "")[0] || null : null;
+
+  // Rebuild the parameter mapping (auto-bound by name) whenever the template changes.
+  useEffect(() => {
+    const m = {};
+    bodyVars.forEach((v) => { m[v] = autoMap(v); });
+    setBodyMapping(m);
+    setHeaderMapping(headerVar ? autoMap(headerVar) : null);
+    setHeaderImageUrl("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate?.id]);
+
+  // Build the rich preview model: parse the template, then fill every variable
+  // (body + header) with the resolved value for the currently-previewed recipient.
+  const previewModel = useMemo(() => {
+    const t = parseTemplate(selectedTemplate || {});
+    const examples = {};
+    bodyVars.forEach((v) => { examples[v] = resolveEntry(bodyMapping[v], current); });
+    if (headerVar) examples[headerVar] = resolveEntry(headerMapping, current);
+    t.body = { ...t.body, examples };
+    if (headerIsMedia && headerImageUrl) {
+      t.header = { ...(t.header || { format: headerComp?.format || "IMAGE" }), mediaHandle: headerImageUrl, mediaName: "" };
+    }
+    return t;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate, bodyMapping, headerMapping, headerImageUrl, current]);
+
   async function doRun() {
     setConfirm(false);
     setPhase("preflight");
@@ -80,25 +162,27 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
     }, 60);
 
     try {
-      const resolver = META_TEMPLATE[selectedTemplate?.name];
+      const headerMedia =
+        headerIsMedia && headerImageUrl
+          ? { type: (headerComp.format || "IMAGE").toLowerCase(), link: headerImageUrl }
+          : null;
 
-      if (!resolver) {
-        console.error("Please provide template configuration");
-        return;
-      }
-
-      const customers = filtered.map((customer) => {
-        const template_params = resolver.GET_PARAMS(customer);
-
-        return {
-          to: customer.phone,
-          customer_id: customer.id,
-          promo_code: customer.promo?.promo_code,
-          template_name: selectedTemplate.name,
-          language: selectedTemplate.language,
-          template_params,
-        };
-      });
+      const customers = filtered.map((customer) => ({
+        to: customer.phone,
+        customer_id: customer.id,
+        promo_code: customer.promo?.promo_code,
+        template_name: selectedTemplate.name,
+        language: selectedTemplate.language,
+        template_params: bodyVars.map((v) => ({
+          name: v,
+          value: resolveEntry(bodyMapping[v], customer),
+        })),
+        parameter_format: paramFormat,
+        header_param: headerVar
+          ? { name: headerVar, value: resolveEntry(headerMapping, customer) }
+          : null,
+        header_media: headerMedia,
+      }));
 
       const res = await sendBlast({
         customers,
@@ -165,6 +249,40 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                 style={{ width: "100%" }}
               />
             </div>
+
+            {(headerIsMedia || headerVar || bodyVars.length > 0) && (
+              <div>
+                <label className="label">Parameters</label>
+                {headerIsMedia && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 2 }}>Header image URL</div>
+                    <input
+                      className="input"
+                      placeholder="https://…"
+                      value={headerImageUrl}
+                      onChange={(e) => setHeaderImageUrl(e.target.value)}
+                    />
+                  </div>
+                )}
+                {headerVar && (
+                  <MappingRow
+                    label={`Header · {{${headerVar}}}`}
+                    entry={headerMapping}
+                    onChange={setHeaderMapping}
+                  />
+                )}
+                {bodyVars.map((v) => (
+                  <MappingRow
+                    key={v}
+                    label={`{{${v}}}`}
+                    entry={bodyMapping[v]}
+                    onChange={(e) => setBodyMapping((m) => ({ ...m, [v]: e }))}
+                  />
+                ))}
+                <div className="hint">Bind each variable to a customer field or a custom value.</div>
+              </div>
+            )}
+
             <div>
               <label className="label">Sender mode</label>
               <Segmented
@@ -375,17 +493,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
           </div>
           <div style={{ padding: 16 }}>
             {selectedTemplate ? (
-              <MetaTemplatePreview
-                template={selectedTemplate}
-                params={{
-                  BODY: {
-                    name: current?.name,
-                    promo_value: current?.promo?.promo_value,
-                    promo_code: current?.promo?.promo_code,
-                    expiry_days: current?.promo?.expiry_days,
-                  },
-                }}
-              />
+              <TemplatePreview {...previewModel} />
             ) : (
               <div className="empty">No template selected.</div>
             )}

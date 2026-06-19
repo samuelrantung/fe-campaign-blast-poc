@@ -471,7 +471,10 @@ export function TemplatePreview({ name, category, language, header, body, footer
         {header && header.format === "TEXT" && header.text && (
           <div style={{ fontWeight: 600, marginBottom: 6 }}>{fill(header.text)}</div>
         )}
-        {header && header.format !== "TEXT" && (
+        {header && header.format === "IMAGE" && /^https?:\/\//.test(header.mediaHandle || "") && (
+          <img src={header.mediaHandle} alt="" style={{ width: "100%", maxHeight: 160, objectFit: "cover", borderRadius: 4, marginBottom: 6 }} />
+        )}
+        {header && header.format !== "TEXT" && !(header.format === "IMAGE" && /^https?:\/\//.test(header.mediaHandle || "")) && (
           <div style={{ background: "var(--panel-2)", border: "1px dashed var(--line)", borderRadius: 4, padding: "18px 0", textAlign: "center", color: "var(--ink-4)", fontSize: 12, marginBottom: 6 }}>
             {header.mediaName ? `📎 ${header.mediaName}` : `${header.format} attachment`}
           </div>
