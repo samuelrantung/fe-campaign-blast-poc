@@ -54,6 +54,7 @@ export default function DatasetScreen({ onNavigate }) {
             const med = res.filter((c) => c.risk === "MEDIUM").length;
             const low = res.filter((c) => c.risk === "LOW").length;
             setStats({
+              totalCustomers: 64,
               total: res.length,
               high,
               medium: med,
@@ -62,6 +63,7 @@ export default function DatasetScreen({ onNavigate }) {
           } else {
             // Real API returns object with breakdown
             setStats({
+              totalCustomers: status?.total_customers || res.total_scored || 0,
               total: res.total_scored || 0,
               high: res.risk_breakdown?.high || 0,
               medium: res.risk_breakdown?.medium || 0,
@@ -143,7 +145,7 @@ export default function DatasetScreen({ onNavigate }) {
   const hasDataset = status?.status === "ready";
 
   return (
-    <div className="page" style={{ maxWidth: 640 }}>
+    <div className="page" style={{ maxWidth: 720 }}>
       {/* ── Progress Stepper Bar ── */}
       <div className="stepper">
         <div
@@ -436,12 +438,19 @@ export default function DatasetScreen({ onNavigate }) {
                   >
                     Analysis Summary Results
                   </div>
-                  <div className="stat-grid">
+                  <div className="stat-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)", marginBottom: 12 }}>
+                    <div className="stat">
+                      <div className="stat-label">Total Customers</div>
+                      <div className="stat-value">{stats.totalCustomers}</div>
+                      <div className="stat-sub">In dataset file</div>
+                    </div>
                     <div className="stat">
                       <div className="stat-label">Scored Total</div>
                       <div className="stat-value">{stats.total}</div>
-                      <div className="stat-sub">Customers evaluated</div>
+                      <div className="stat-sub">At-risk identified</div>
                     </div>
+                  </div>
+                  <div className="stat-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
                     <div className="stat">
                       <div className="stat-label">High Risk</div>
                       <div className="stat-value" style={{ color: "var(--risk-high)" }}>

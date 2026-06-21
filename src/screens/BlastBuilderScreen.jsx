@@ -411,7 +411,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                           {c.promo?.promo_code || c.uniqueCode || "—"}
                         </span>
                       </td>
-                      <td className="col-num">{fmtUSD(c.totalSpend)}</td>
+                      <td className="col-num">{fmtIDR(c.totalSpend)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -439,7 +439,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                     {phase === "done" &&
                       result &&
                       `Blast ID ${result.blast_id || result.blastId || "—"} · ${result.sent} sent · ${result.failed} failed` +
-                        (result.skipped ? ` · ${result.skipped} skipped` : "")}
+                      (result.skipped ? ` · ${result.skipped} skipped` : "")}
                   </div>
                 </div>
                 {phase === "done" && (
