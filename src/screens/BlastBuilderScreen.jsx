@@ -37,6 +37,14 @@ function autoMap(varName) {
     : { source: "custom", value: "" };
 }
 
+// Human-readable reason(s) a blast skipped recipients.
+function skipReason(result) {
+  const parts = [];
+  if (result.skipped_unsubscribed) parts.push("opted out");
+  if (result.skipped_cooldown) parts.push("cooldown");
+  return parts.join(", ");
+}
+
 function resolveEntry(entry, customer) {
   if (!entry) return "";
   const v = entry.source === "field" ? fieldValue(customer, entry.field) : entry.value;
@@ -430,7 +438,8 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                       `Rate-limited at 10 msg/s · ${Math.round(progress * filtered.length)} / ${filtered.length}`}
                     {phase === "done" &&
                       result &&
-                      `Blast ID ${result.blastId} · ${result.sent} sent · ${result.failed} failed`}
+                      `Blast ID ${result.blast_id || result.blastId || "—"} · ${result.sent} sent · ${result.failed} failed` +
+                        (result.skipped ? ` · ${result.skipped} skipped` : "")}
                   </div>
                 </div>
                 {phase === "done" && (
@@ -467,7 +476,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                   </div>
                 </div>
                 {phase === "done" && result && (
-                  <div style={{ marginTop: 12, display: "flex", gap: 18 }}>
+                  <div style={{ marginTop: 12, display: "flex", gap: 18, flexWrap: "wrap" }}>
                     <span className="badge badge-ok">
                       <span className="dot" />
                       {result.sent} sent
@@ -476,6 +485,15 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                       <span className="dot" />
                       {result.failed} failed
                     </span>
+                    {result.skipped > 0 && (
+                      <span
+                        className="badge badge-mute"
+                        title={`${result.skipped_unsubscribed || 0} opted out · ${result.skipped_cooldown || 0} on cooldown`}
+                      >
+                        <span className="dot" />
+                        {result.skipped} skipped{skipReason(result) && ` (${skipReason(result)})`}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
