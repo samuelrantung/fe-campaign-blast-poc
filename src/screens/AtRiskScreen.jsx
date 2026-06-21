@@ -25,8 +25,14 @@ function mapCustomerKeys(row) {
   if (row.triggered_rules != null) row.rules = row.triggered_rules;
   if (row.days_since_last_purchase != null)
     row.daysSinceLastPurchase = row.days_since_last_purchase;
-  if (row.spend_summary != null)
+  if (row.spend_summary != null) {
     row.totalSpend = row.spend_summary?.total_spend;
+    row.avgSpend = row.spend_summary?.avg_order_value;
+    row.purchaseCount = row.spend_summary?.purchase_count;
+  } else {
+    row.avgSpend = row.avgOrderValue;
+    row.purchaseCount = row.purchaseCount;
+  }
   return row;
 }
 
@@ -264,6 +270,8 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
                 <th>Rules</th>
                 <th className="col-num">Days since</th>
                 <th className="col-num">Spend</th>
+                <th className="col-num">Avg Spend</th>
+                <th className="col-num">Total Trans.</th>
                 <th />
               </tr>
             </thead>
@@ -296,14 +304,11 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
                     <RulePills rules={c.rules} />
                   </td>
                   <td className="col-num">{c.daysSinceLastPurchase}d</td>
-                  <td className="col-num">{fmtUSD(c.totalSpend)}</td>
+                  <td className="col-num">{fmtIDR(c.totalSpend)}</td>
+                  <td className="col-num">{fmtIDR(c.avgSpend)}</td>
+                  <td className="col-num">{c.purchaseCount}</td>
                   <td>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => onOpenCustomer(c.id)}
-                    >
-                      View →
-                    </button>
+                    {/* View detail button hidden for now */}
                   </td>
                 </tr>
               ))}

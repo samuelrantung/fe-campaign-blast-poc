@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, isValidElement, cloneElement } from "react";
 import { Select } from "./common/Controls";
 import { uploadTemplateMedia } from "../api";
 
@@ -15,8 +15,52 @@ export function findVars(text) {
 }
 
 
-/** Render WhatsApp inline formatting: *bold*, _italic_, ~strikethrough~. */
-function formatWhatsApp(text) {
+function restoreVariables(node, vars, placeholderPrefix) {
+  if (typeof node === "string") {
+    if (!node.includes(placeholderPrefix)) return node;
+    const parts = [];
+    const regex = new RegExp(`${placeholderPrefix}(\\d+)`, "g");
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(node)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(node.slice(lastIndex, match.index));
+      }
+      const idx = parseInt(match[1], 10);
+      parts.push(vars[idx]);
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < node.length) {
+      parts.push(node.slice(lastIndex));
+    }
+    return parts.length === 1 ? parts[0] : parts;
+  }
+
+  if (Array.isArray(node)) {
+    const result = [];
+    for (const item of node) {
+      const restored = restoreVariables(item, vars, placeholderPrefix);
+      if (Array.isArray(restored)) {
+        result.push(...restored);
+      } else {
+        result.push(restored);
+      }
+    }
+    return result;
+  }
+
+  if (isValidElement(node)) {
+    if (node.props && node.props.children !== undefined) {
+      const restoredChildren = restoreVariables(node.props.children, vars, placeholderPrefix);
+      return cloneElement(node, null, restoredChildren);
+    }
+    return node;
+  }
+
+  return node;
+}
+
+function _formatWhatsAppCore(text) {
   if (!text) return text;
   const re = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~)/g;
   const out = [];
@@ -26,7 +70,7 @@ function formatWhatsApp(text) {
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const tok = m[0];
-    const inner = formatWhatsApp(tok.slice(1, -1)); // recurse for nested formatting
+    const inner = _formatWhatsAppCore(tok.slice(1, -1)); // recurse for nested formatting
     if (tok.startsWith("*")) out.push(<strong key={key++}>{inner}</strong>);
     else if (tok.startsWith("_")) out.push(<em key={key++}>{inner}</em>);
     else out.push(<s key={key++}>{inner}</s>);
@@ -34,6 +78,22 @@ function formatWhatsApp(text) {
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
+}
+
+/** Render WhatsApp inline formatting: *bold*, _italic_, ~strikethrough~. */
+function formatWhatsApp(text) {
+  if (!text) return text;
+
+  const vars = [];
+  const placeholderPrefix = `VARPH${Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(0, 8)}`;
+  const maskedText = text.replace(/\{\{[^{}]*\}\}/g, (match) => {
+    const placeholder = `${placeholderPrefix}${vars.length}`;
+    vars.push(match);
+    return placeholder;
+  });
+
+  const formatted = _formatWhatsAppCore(maskedText);
+  return restoreVariables(formatted, vars, placeholderPrefix);
 }
 
 /** Parse an existing Meta template's components into editor/preview state. */
@@ -59,11 +119,11 @@ export function parseTemplate(initial) {
     paramFormat: initial?.parameter_format || "NAMED",
     header: h
       ? {
-          format: h.format || "TEXT",
-          text: h.text || "",
-          mediaHandle: h.example?.header_handle?.[0] || "",
-          mediaName: "",
-        }
+        format: h.format || "TEXT",
+        text: h.text || "",
+        mediaHandle: h.example?.header_handle?.[0] || "",
+        mediaName: "",
+      }
       : null,
     body: { text: b?.text || "", examples: bodyExamples },
     footer: f ? { text: f.text || "" } : null,

@@ -134,7 +134,7 @@ export async function sendBlast({ customers, maxBlastSize, senderMode }) {
       customer_id: customer.customer_id,
       promo_code: customer.promo_code,
       template_name: customer.template_name,
-      language_code: customer.language,
+      language_code: customer.language_code || customer.language,
       template_params: customer.template_params,
       parameter_format: customer.parameter_format,
       header_param: customer.header_param,
@@ -146,6 +146,8 @@ export async function sendBlast({ customers, maxBlastSize, senderMode }) {
     max_blast_size: maxBlastSize,
     sender_mode: senderMode,
   };
+
+
   return apiFetch("/messaging/send-bulk", {
     method: "POST",
     body,
