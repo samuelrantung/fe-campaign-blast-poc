@@ -276,6 +276,27 @@ export default function DatasetScreen({ onNavigate }) {
               <div className="panel" style={{ marginTop: 20, background: "var(--panel-2)" }}>
                 <div className="panel-header" style={{ borderBottom: "none" }}>
                   <div>
+                    <div className="panel-title" style={{ fontSize: 12 }}>Test Recipient Number</div>
+                    <div className="panel-sub" style={{ marginTop: 4 }}>
+                      In development mode, Meta only delivers to numbers on your allowed list. Add a test number in the Meta console (up to 5).
+                    </div>
+                  </div>
+                  <div style={{ flex: 1 }} />
+                  <a
+                    className="btn"
+                    style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+                    href="https://developers.facebook.com/apps/1342063361404145/use_cases/customize/api-testing-v2/?use_case_enum=WHATSAPP_BUSINESS_MESSAGING&product_route=whatsapp-business&business_id=1112211401162827&selected_tab=api-testing-v2"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Add in Meta ↗
+                  </a>
+                </div>
+              </div>
+
+              <div className="panel" style={{ marginTop: 20, background: "var(--panel-2)" }}>
+                <div className="panel-header" style={{ borderBottom: "none" }}>
+                  <div>
                     <div className="panel-title" style={{ fontSize: 12 }}>Template Schema & Columns</div>
                     <div className="panel-sub" style={{ marginTop: 4 }}>
                       Download the spreadsheet template to see the required format.
