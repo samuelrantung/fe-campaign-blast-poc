@@ -107,6 +107,7 @@ export default function LogsScreen() {
             </tr>
           </thead>
           <tbody>
+            {console.log("@@rows", rows)}
             {rows.map((r) => (
               <tr key={r.id}>
                 <td className="mono" style={{ fontSize: 12 }}>{fmtAbsTime(r.sentAt)}</td>
@@ -118,14 +119,18 @@ export default function LogsScreen() {
                 <td className="mono" style={{ fontSize: 12 }}>{r.code}</td>
                 <td><StatusBadge status={r.status} /></td>
                 <td>
-                  {r.errorCode ? (
+                  <span>
+                    {r.errorCode && (<span className="mono" style={{ fontSize: 11, background: 'var(--fail-bg)', color: 'var(--fail)', padding: '1px 5px', borderRadius: 3, marginRight: 6 }}>{r.errorCode}</span>)}
+                    {r.errorReason ? (<span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{r.errorReason}</span>) : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                  </span>
+                  {/* {r.errorCode ? (
                     <span>
                       <span className="mono" style={{ fontSize: 11, background: 'var(--fail-bg)', color: 'var(--fail)', padding: '1px 5px', borderRadius: 3, marginRight: 6 }}>{r.errorCode}</span>
                       <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>{r.errorReason}</span>
                     </span>
                   ) : (
                     <span style={{ color: 'var(--ink-4)' }}>—</span>
-                  )}
+                  )} */}
                 </td>
                 <td className="mono" style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.blastId}</td>
               </tr>

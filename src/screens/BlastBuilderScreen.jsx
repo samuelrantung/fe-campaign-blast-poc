@@ -4,12 +4,13 @@ import { Select, Segmented } from "../components/common/Controls";
 import Modal from "../components/common/Modal";
 import { useAsync } from "../hooks/useAsync";
 import { getTemplates, sendBlast } from "../api";
-import { fmtUSD } from "../utils/format";
+import { fmtUSD, fmtIDR, fmtRelative } from "../utils/format";
 import { findVars, parseTemplate, TemplatePreview } from "../components/TemplateEditor";
 
 // Customer fields a template variable can be bound to.
 const FIELD_OPTIONS = [
   { value: "name", label: "Customer name" },
+  { value: "first_name", label: "Customer first name" },
   { value: "phone", label: "Phone" },
   { value: "promo_type", label: "Promo type" },
   { value: "promo_value", label: "Promo value" },
@@ -21,6 +22,7 @@ const FIELD_KEYS = FIELD_OPTIONS.map((f) => f.value);
 function fieldValue(customer, field) {
   switch (field) {
     case "name": return customer?.name;
+    case "first_name": return customer?.name;
     case "phone": return customer?.phone;
     case "promo_type": return customer?.promo?.promo_type;
     case "promo_value": return customer?.promo?.promo_value;
@@ -30,11 +32,27 @@ function fieldValue(customer, field) {
   }
 }
 
-// Default binding for a variable: auto-map to a same-named field, else custom.
+// Add one entry per known template. The resolver is called once per customer
+// at preview time and once per customer at blast time.
+// Variables not covered here fall back to the manual mapping form.
+const TEMPLATE_RESOLVERS = {
+  reengagement_promo: (customer) => ({
+    first_name: customer?.name ?? "",
+    business_name: "Greenmart",
+    promo_message: customer?.promo?.promo_value ?? "",
+    promo_code: customer?.promo?.promo_code ?? "",
+    expiry_days: `${customer?.promo?.expiry_days ?? ""} hari`,
+    extra_expiry_days: `${(customer?.promo?.expiry_days ?? 7) + 7} hari`,
+    business_slogan: "Greenmart, tampa blanja paling hijau!",
+  }),
+};
+
+// Fallback binding for manual-mode templates: map by name if it matches a known field.
 function autoMap(varName) {
-  return FIELD_KEYS.includes(varName)
-    ? { source: "field", field: varName }
-    : { source: "custom", value: "" };
+  if (FIELD_KEYS.includes(varName)) {
+    return { source: "field", field: varName };
+  }
+  return { source: "custom", value: "" };
 }
 
 // Human-readable reason(s) a blast skipped recipients.
@@ -127,31 +145,39 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
   const paramFormat = selectedTemplate?.parameter_format || "NAMED";
   const bodyVars = useMemo(() => findVars(bodyComp?.text || ""), [bodyComp?.text]);
   const headerVar = headerIsText ? findVars(headerComp?.text || "")[0] || null : null;
+  const resolver = TEMPLATE_RESOLVERS[selectedTemplate?.name] ?? null;
 
-  // Rebuild the parameter mapping (auto-bound by name) whenever the template changes.
+  // Rebuild manual bindings when the template changes (only used when no resolver).
   useEffect(() => {
-    const m = {};
-    bodyVars.forEach((v) => { m[v] = autoMap(v); });
-    setBodyMapping(m);
-    setHeaderMapping(headerVar ? autoMap(headerVar) : null);
+    if (!resolver) {
+      const m = {};
+      bodyVars.forEach((v) => { m[v] = autoMap(v); });
+      setBodyMapping(m);
+      setHeaderMapping(headerVar ? autoMap(headerVar) : null);
+    }
     setHeaderImageUrl("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplate?.id]);
 
-  // Build the rich preview model: parse the template, then fill every variable
-  // (body + header) with the resolved value for the currently-previewed recipient.
+  // Build the rich preview model: fill variables from resolver (auto) or manual bindings.
   const previewModel = useMemo(() => {
     const t = parseTemplate(selectedTemplate || {});
     const examples = {};
-    bodyVars.forEach((v) => { examples[v] = resolveEntry(bodyMapping[v], current); });
-    if (headerVar) examples[headerVar] = resolveEntry(headerMapping, current);
+    if (resolver) {
+      const resolved = resolver(current);
+      bodyVars.forEach((v) => { examples[v] = resolved[v] ?? ""; });
+      if (headerVar) examples[headerVar] = resolved[headerVar] ?? "";
+    } else {
+      bodyVars.forEach((v) => { examples[v] = resolveEntry(bodyMapping[v], current); });
+      if (headerVar) examples[headerVar] = resolveEntry(headerMapping, current);
+    }
     t.body = { ...t.body, examples };
     if (headerIsMedia && headerImageUrl) {
       t.header = { ...(t.header || { format: headerComp?.format || "IMAGE" }), mediaHandle: headerImageUrl, mediaName: "" };
     }
     return t;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTemplate, bodyMapping, headerMapping, headerImageUrl, current]);
+  }, [selectedTemplate, resolver, bodyMapping, headerMapping, headerImageUrl, current]);
 
   async function doRun() {
     setConfirm(false);
@@ -175,22 +201,25 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
           ? { type: (headerComp.format || "IMAGE").toLowerCase(), link: headerImageUrl }
           : null;
 
-      const customers = filtered.map((customer) => ({
-        to: customer.phone,
-        customer_id: customer.id,
-        promo_code: customer.promo?.promo_code,
-        template_name: selectedTemplate.name,
-        language: selectedTemplate.language,
-        template_params: bodyVars.map((v) => ({
-          name: v,
-          value: resolveEntry(bodyMapping[v], customer),
-        })),
-        parameter_format: paramFormat,
-        header_param: headerVar
-          ? { name: headerVar, value: resolveEntry(headerMapping, customer) }
-          : null,
-        header_media: headerMedia,
-      }));
+      const customers = filtered.map((customer) => {
+        const resolved = resolver ? resolver(customer) : null;
+        return {
+          to: customer.phone,
+          customer_id: customer.id,
+          promo_code: customer.promo?.promo_code,
+          template_name: selectedTemplate.name,
+          language: selectedTemplate.language,
+          template_params: bodyVars.map((v) => ({
+            name: v,
+            value: resolved ? (resolved[v] ?? "") : resolveEntry(bodyMapping[v], customer),
+          })),
+          parameter_format: paramFormat,
+          header_param: headerVar
+            ? { name: headerVar, value: resolved ? (resolved[headerVar] ?? "") : resolveEntry(headerMapping, customer) }
+            : null,
+          header_media: headerMedia,
+        };
+      });
 
       const res = await sendBlast({
         customers,
@@ -258,7 +287,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
               />
             </div>
 
-            {(headerIsMedia || headerVar || bodyVars.length > 0) && (
+            {(headerIsMedia || (!resolver && (headerVar || bodyVars.length > 0))) && (
               <div>
                 <label className="label">Parameters</label>
                 {headerIsMedia && (
@@ -272,14 +301,14 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                     />
                   </div>
                 )}
-                {headerVar && (
+                {!resolver && headerVar && (
                   <MappingRow
                     label={`Header · {{${headerVar}}}`}
                     entry={headerMapping}
                     onChange={setHeaderMapping}
                   />
                 )}
-                {bodyVars.map((v) => (
+                {!resolver && bodyVars.map((v) => (
                   <MappingRow
                     key={v}
                     label={`{{${v}}}`}
@@ -287,7 +316,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                     onChange={(e) => setBodyMapping((m) => ({ ...m, [v]: e }))}
                   />
                 ))}
-                <div className="hint">Bind each variable to a customer field or a custom value.</div>
+                {!resolver && <div className="hint">Bind each variable to a customer field or a custom value.</div>}
               </div>
             )}
 
@@ -379,6 +408,7 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                     <th>Promo</th>
                     <th>Code</th>
                     <th className="col-num">Spend</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -412,6 +442,25 @@ export default function BlastBuilderScreen({ preselected = [], onSent }) {
                         </span>
                       </td>
                       <td className="col-num">{fmtIDR(c.totalSpend)}</td>
+                      <td>
+                        {c.on_cooldown ? (
+                          <span
+                            className="badge badge-med"
+                            title={c.last_blasted_at ? fmtRelative(c.last_blasted_at) : undefined}
+                          >
+                            <span className="dot" />cooldown
+                          </span>
+                        ) : c.last_blasted_at ? (
+                          <span
+                            className="badge badge-ok"
+                            title={fmtRelative(c.last_blasted_at)}
+                          >
+                            <span className="dot" />ready
+                          </span>
+                        ) : (
+                          <span className="badge badge-mute">new</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -41,6 +41,7 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
 
   const pageQuery = new URLSearchParams(window.location.search).get("page");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("risk");
   const [selected, setSelected] = useState(new Set());
@@ -57,6 +58,18 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
     history.pushState(null, "", "?" + params.toString());
   }
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  function handleSearchChange(val) {
+    setSearch(val);
+    setPage(1);
+  }
+
   const { data, loading, error } = useAsync(
     () =>
       getAtRiskCustomers({
@@ -64,8 +77,9 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
         offset: (page - 1) * PAGE_SIZE,
         risk_level: riskFilter !== "ALL" ? riskFilter : undefined,
         sort_by: sortBy,
+        search: debouncedSearch || undefined,
       }),
-    [page, riskFilter, sortBy],
+    [page, riskFilter, sortBy, debouncedSearch],
   );
   const customers = data?.results || [];
   const totalRisk = data?.total || 0;
@@ -164,7 +178,7 @@ export default function AtRiskScreen({ onOpenCustomer, onStartBlast }) {
       <Toolbar>
         <Search
           value={search}
-          onChange={setSearch}
+          onChange={handleSearchChange}
           placeholder="Search name or customer ID…"
         />
         <Segmented
